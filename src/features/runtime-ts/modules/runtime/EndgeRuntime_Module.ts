@@ -12,19 +12,27 @@ import type { EndgeProgram_Module } from '@/features/runtime-ts/modules/program/
 import type { ProgramArtifact, RuntimeHostSnapshot, RuntimeInspectionSnapshot } from '@/features/runtime-ts/modules/program/program.types'
 import type { EndgeVocabs_Module } from '@/features/runtime-ts/modules/vocabs/EndgeVocabs_Module'
 import type { EndgeWorkspace_Module } from '@/features/runtime-ts/modules/workspace/EndgeWorkspace_Module'
-import { RaphApp as RaphApplication } from '@endge/raph'
+import { RaphApp as RaphApplication, RaphNode } from '@endge/raph'
 import { EndgeModule } from '@/features/federation/EndgeModule'
 import { evaluateExpression } from '@/features/runtime-ts/shared/expression'
 import { copyJson, readPath, writePath } from '@/features/runtime-ts/shared/json'
+import { EndgeOperations_Module } from './operations/EndgeOperations_Module'
+import { OperationHistory } from './operations/operation-history'
+import { RuntimeBoundaryUpdatePhase } from './raph/runtime-boundary-update-phase'
+import { RuntimeNodeUpdatePhase } from './raph/runtime-node-update-phase'
+import { RuntimeResourceBag } from './resources/RuntimeResourceBag'
 import { RuntimeHost } from './runtime.types'
 
 export class EndgeRuntime_Module extends EndgeModule<RuntimeTsBootContext> {
+  public readonly operations = new EndgeOperations_Module()
   private _app: RaphApp | null = null
   private _abortController: AbortController | null = null
   private _externalAbortDisposer: (() => void) | null = null
   private readonly _hosts = new Map<string, RuntimeHost>()
+  private readonly _raphNodes = new Map<string, RaphNode>()
   private readonly _deleted: RuntimeHostSnapshot[] = []
   private readonly _scopeSnapshots: Array<Record<string, any>> = []
+  private readonly _scopeResources = new Map<string, RuntimeResourceBag>()
   private readonly _disposers: Array<() => void> = []
   private _generation = 0
   private _runtimeSequence = 0
@@ -52,6 +60,8 @@ export class EndgeRuntime_Module extends EndgeModule<RuntimeTsBootContext> {
     this._generation += 1
     this._app = new RaphApplication({ id: `endge-runtime-ts:${this._generation}` })
     this._app.init()
+    this._app.addPhase(RuntimeNodeUpdatePhase.make({ resolveHost: id => this.getHost(id) }))
+    this._app.addPhase(RuntimeBoundaryUpdatePhase.make({ getGraph: () => this.app.graph, resolveHost: id => this.getHost(id) }))
     this._scopeSnapshots.push({
       id: 'runtime-scope:app',
       path: 'runtime',
@@ -163,7 +173,10 @@ export class EndgeRuntime_Module extends EndgeModule<RuntimeTsBootContext> {
         deletedTotal: this._deleted.length,
         deletedHosts: copyJson(this._deleted),
         byStatus,
-        scopes: copyJson(this._scopeSnapshots),
+        scopes: copyJson(this._scopeSnapshots.map(scope => ({
+          ...scope,
+          resources: this._scopeResources.get(scope.id)?.snapshot() ?? scope.resources,
+        }))),
       },
     }
     if (includeData) {
@@ -178,7 +191,19 @@ export class EndgeRuntime_Module extends EndgeModule<RuntimeTsBootContext> {
     const host = this._hosts.get(id)
     if (!host) { return }
     for (const child of [...host.children.values()].reverse()) { await this.destroyRuntimeTree(child.id) }
-    await host.connection?.close()
+    const ownedScopes = this._scopeSnapshots.filter(scope => scope.ownerRuntimeId === id).reverse()
+    for (const scope of ownedScopes) {
+      await this._scopeResources.get(scope.id)?.dispose()
+      this._scopeResources.delete(scope.id)
+      const parent = this._scopeSnapshots.find(candidate => candidate.id === scope.parentScopeId)
+      if (parent) { parent.childScopeIds = parent.childScopeIds.filter((scopeId: string) => scopeId !== scope.id) }
+      const index = this._scopeSnapshots.indexOf(scope)
+      if (index >= 0) { this._scopeSnapshots.splice(index, 1) }
+    }
+    this._scopeSnapshots.forEach((scope) => { scope.memberRuntimeIds = scope.memberRuntimeIds.filter((runtimeId: string) => runtimeId !== id) })
+    await host.ownedResources.dispose()
+    this._raphNodes.get(id)?.remove()
+    this._raphNodes.delete(id)
     host.setStatus('destroyed')
     const snapshot = host.snapshot()
     snapshot.removedAt = Date.now()
@@ -194,10 +219,14 @@ export class EndgeRuntime_Module extends EndgeModule<RuntimeTsBootContext> {
     this._disposers.splice(0).reverse().forEach(dispose => dispose())
     for (const host of [...this._hosts.values()].filter(item => !item.parent).reverse()) { await this.destroyRuntimeTree(host.id) }
     this._hosts.clear()
+    this._raphNodes.clear()
     this._deleted.splice(0)
+    for (const resources of this._scopeResources.values()) { await resources.dispose() }
+    this._scopeResources.clear()
     this._scopeSnapshots.splice(0)
     this._runtimeSequence = 0
-    this._app?.reset()
+    this.operations.reset()
+    this._app?.destroy()
     this._app = null
   }
 
@@ -205,6 +234,12 @@ export class EndgeRuntime_Module extends EndgeModule<RuntimeTsBootContext> {
     const id = `${parent?.id ?? 'app'}:${name}:${++this._runtimeSequence}`
     const host = new RuntimeHost({ id, entityType, entityIdentity: identity, parent, title: name, basePath: `${parent?.basePath ?? 'runtime'}.${encodeURIComponent(name)}`, capabilities })
     this._hosts.set(id, host)
+    const node = new RaphNode(this.app, { id: `runtime-node:${id}`, meta: { type: 'runtime-node', kind: 'root', runtimeId: id } })
+    this.app.addNode(node)
+    this.app.track(node, `${host.basePath}.**`)
+    const parentNode = parent ? this._raphNodes.get(parent.id) : null
+    parentNode?.addChild(node)
+    this._raphNodes.set(id, node)
     this._scopeSnapshots[0]?.memberRuntimeIds.push(id)
     return host
   }
@@ -338,6 +373,13 @@ export class EndgeRuntime_Module extends EndgeModule<RuntimeTsBootContext> {
       error: (error) => { host.context.error = error instanceof Error ? error.message : String(error); host.setStatus('error') },
       message: message => this._handleStreamMessage(host, payload, message, descriptor, dataHosts),
     })
+    host.ownedResources.add({
+      id: `${host.id}:stream-connection`,
+      kind: `${String(payload.transport?.kind)}-connection`,
+      pause: host.connection.pause,
+      resume: host.connection.resume,
+      dispose: () => host.connection?.close(),
+    })
     return host
   }
 
@@ -459,9 +501,24 @@ export class EndgeRuntime_Module extends EndgeModule<RuntimeTsBootContext> {
       if (descriptor.effectiveActivation?.mode !== 'startup') { continue }
       const id = `runtime-scope:${host.id}:${descriptor.path}`
       const parentScopeId = descriptor.parentPath ? `runtime-scope:${host.id}:${descriptor.parentPath}` : 'runtime-scope:app'
-      this._scopeSnapshots.push({ id, path: descriptor.path, parentScopeId, ownerRuntimeId: host.id, generation: this._generation, state: 'active', memberRuntimeIds: [], childScopeIds: [], resources: {} })
+      const resources = new RuntimeResourceBag()
+      this._scopeResources.set(id, resources)
+      this._scopeSnapshots.push({ id, path: descriptor.path, parentScopeId, ownerRuntimeId: host.id, generation: this._generation, state: 'active', memberRuntimeIds: [], childScopeIds: [], resources: resources.snapshot() })
       const parent = this._scopeSnapshots.find(scope => scope.id === parentScopeId)
       parent?.childScopeIds.push(id)
+      for (const resourcePath of descriptor.resources ?? []) {
+        const resource = (payload.resources ?? []).find((item: any) => item.path === resourcePath)
+        if (resource?.kind !== 'operation-history') { continue }
+        const history = new OperationHistory({ id: `${id}:operation-history`, limit: resource.operationHistory?.limit })
+        const unregister = this.operations.register(id, host.id, history)
+        resources.add({
+          id: history.id,
+          kind: history.kind,
+          pause: () => history.pause(),
+          resume: () => history.resume(),
+          dispose: () => { unregister(); history.dispose() },
+        })
+      }
     }
   }
 

@@ -53,7 +53,7 @@ describe('runtime TS с Execution Bundle', () => {
     const store = EndgeRuntimeTs.runtime.getHosts().find(item => item.entityType === 'store')
     const component = EndgeRuntimeTs.runtime.getHosts().find(item => item.entityType === 'component-sfc')
     expect(EndgeRuntimeTs.runtime.app.get(`${store?.basePath}.items`)).toEqual([{ id: 1, name: 'Коробка' }])
-    expect((component as any).getIr()).toMatchObject({ version: 1 })
+    expect((component as any).getIr()).toMatchObject({ version: 2 })
 
     host.emit({ type: 'stock.changed', payload: { items: [{ id: 2, name: 'Паллета' }] } })
     expect(EndgeRuntimeTs.runtime.app.get(`${store?.basePath}.items`)).toEqual([{ id: 2, name: 'Паллета' }])
@@ -69,6 +69,24 @@ describe('runtime TS с Execution Bundle', () => {
     expect(await EndgeRuntimeTs.converters.execute('uppercase', 'box')).toBe('BOX')
     dispose()
     expect(EndgeRuntimeTs.runtime.runDataView('warehouse-visible', [{ id: 1 }])).toEqual([{ id: 1 }])
+  })
+
+  it('владеет operation history в Composition scope и выполняет undo/redo headless', async () => {
+    const host = createHost()
+    await EndgeRuntimeTs.run({ bundle: bundleFixture, host: host.options })
+    const component = EndgeRuntimeTs.runtime.getHosts().find(item => item.entityType === 'component-sfc')
+    const history = EndgeRuntimeTs.runtime.operations.resolveForHost(component)
+    const undo = vi.fn(async () => 'undone')
+    const redo = vi.fn(async () => 'redone')
+    await history!.commit({ id: 'edit-1', input: { value: 1 }, runOutput: 'done', undo, redo })
+
+    expect(EndgeRuntimeTs.runtime.operations.canUndo()).toBe(true)
+    expect(await EndgeRuntimeTs.runtime.operations.undo()).toBe('undone')
+    expect(await EndgeRuntimeTs.runtime.operations.redo()).toBe('redone')
+    expect(undo).toHaveBeenCalledOnce()
+    expect(redo).toHaveBeenCalledOnce()
+    const scope = EndgeRuntimeTs.runtime.captureInspection().runtime.scopes.find(item => item.path === 'scope_default')
+    expect(scope?.resources).toMatchObject({ total: 1, paused: false })
   })
 
   it('создаёт совместимый JSON-safe inspection Bundle с runtime и Raph data', async () => {

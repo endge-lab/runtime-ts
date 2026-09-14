@@ -1,6 +1,7 @@
 import type { EndgeBundle, ExecutionBundle, ProgramArtifact, ProgramEntityType } from './program.types'
 import { readInspectionRecording } from '@/features/runtime-ts/modules/inspection/inspection-recording'
 import { asObject, asText, copyJson } from '@/features/runtime-ts/shared/json'
+import { validatePortableProgramPayload } from './portable-program-payload'
 
 const PAYLOAD_TYPES = new Set<ProgramEntityType>([
   'type',
@@ -35,7 +36,10 @@ export function readExecutionBundle(input: unknown): ExecutionBundle {
   if (Object.values(facets).some(item => typeof item !== 'string')) {
     throw new Error('[Bundle] Invalid context facets')
   }
-  asObject(context.configuration, 'configuration')
+  validateConfiguration(context.configuration)
+  for (const key of ['workspace', 'user', 'locale', 'theme', 'timezone']) {
+    if (context[key] !== null && typeof context[key] !== 'string') { throw new Error('[Bundle] Invalid context field') }
+  }
   const requirements = asObject(value.requirements, 'requirements')
   if (!Array.isArray(requirements.artifactTypes) || !Array.isArray(requirements.componentTags)) {
     throw new TypeError('[Bundle] Invalid requirements')
@@ -59,6 +63,14 @@ export function readExecutionBundle(input: unknown): ExecutionBundle {
       hostActions.add(identity)
     })
   }
+  const componentTags = new Set<string>()
+  requirements.componentTags.forEach((raw: unknown) => {
+    const tag = asObject(raw, 'component tag')
+    const name = asText(tag.tag, 'component tag')
+    asText(tag.identity, 'component identity')
+    if (componentTags.has(name)) { throw new Error('[Bundle] Duplicate component tag') }
+    componentTags.add(name)
+  })
   const catalog = asObject(value.catalog, 'catalog')
   asObject(catalog.folders, 'catalog folders')
   asObject(catalog.documents, 'catalog documents')
@@ -71,6 +83,9 @@ export function readExecutionBundle(input: unknown): ExecutionBundle {
     }
     if (workspace.startupCompositionIdentity !== null && typeof workspace.startupCompositionIdentity !== 'string') {
       throw new Error('[Bundle] Invalid startup Composition')
+    }
+    if (workspace.documentStructure !== undefined && !['frontend', 'custom'].includes(String(workspace.documentStructure))) {
+      throw new Error('[Bundle] Invalid workspace descriptor')
     }
   }
   const artifacts = asObject(value.artifacts, 'artifacts')
@@ -104,11 +119,16 @@ export function readExecutionBundle(input: unknown): ExecutionBundle {
     if (!Array.isArray(artifact.dependencies) || !Array.isArray(artifact.diagnostics) || !Array.isArray(artifact.capabilities)) {
       throw new TypeError('[Bundle] Invalid artifact collections')
     }
+    artifact.dependencies.forEach((raw: unknown) => {
+      const dependency = asObject(raw, 'dependency')
+      asText(dependency.entityType, 'dependency type')
+      if (typeof dependency.id !== 'string' && typeof dependency.id !== 'number') { throw new TypeError('[Bundle] Invalid dependency id') }
+    })
     if (artifact.diagnostics.some((item: any) => item?.severity === 'error')) {
       throw new Error('[Bundle] Artifact has compilation errors')
     }
     asObject(artifact.metadata, 'artifact metadata')
-    asObject(artifact.payload, 'artifact payload')
+    validatePortableProgramPayload(ref.entityType, artifact.payload)
     allArtifacts.push(artifact as ProgramArtifact)
     if (artifact.children !== undefined) {
       if (!Array.isArray(artifact.children)) {
@@ -119,6 +139,7 @@ export function readExecutionBundle(input: unknown): ExecutionBundle {
   }
   Object.entries(artifacts).forEach(([key, artifact]) => validateArtifact(artifact, key))
   allArtifacts.forEach((artifact) => {
+    if (!requirements.artifactTypes.includes(artifact.ref.entityType)) { throw new Error('[Bundle] Missing artifact requirement') }
     artifact.dependencies.forEach((dependency) => {
       if (!PAYLOAD_TYPES.has(dependency.entityType as ProgramEntityType)) {
         return
@@ -141,7 +162,70 @@ export function readExecutionBundle(input: unknown): ExecutionBundle {
       throw new Error('[Bundle] Missing component tag artifact')
     }
   })
+  validateCatalog(catalog.folders, catalog.documents, artifacts)
   return value as ExecutionBundle
+}
+
+function validateConfiguration(input: unknown): void {
+  const value = asObject(input, 'configuration')
+  for (const key of ['vars', 'locales', 'themes', 'timezones', 'sfcAdapterIds']) {
+    if (!Array.isArray(value[key])) { throw new TypeError(`[EndgeConfiguration] ${key} must be an array`) }
+  }
+  const member = (field: string, values: unknown[], identity: (item: any) => unknown) => {
+    const selected = value[field]
+    if (typeof selected !== 'string' || !values.some(item => identity(item) === selected)) { throw new Error(`[EndgeConfiguration] invalid ${field}`) }
+  }
+  member('defaultLocale', value.locales, item => item?.code)
+  member('fallbackLocale', value.locales, item => item?.code)
+  member('defaultTheme', value.themes, item => item?.identity)
+  member('defaultTimezone', value.timezones, item => item?.identity)
+  member('defaultSfcAdapterId', value.sfcAdapterIds, item => item)
+  asObject(value.values, 'configuration values')
+}
+
+function validateCatalog(foldersInput: unknown, documentsInput: unknown, artifactsInput: unknown): void {
+  const folders = asObject(foldersInput, 'folders')
+  const documents = asObject(documentsInput, 'documents')
+  const artifacts = asObject(artifactsInput, 'artifacts')
+  for (const [key, raw] of Object.entries(folders)) {
+    const folder = asObject(raw, 'folder')
+    if (folder.id !== key || typeof folder.displayName !== 'string' || !Number.isFinite(folder.position) || !['workspace', 'collection'].includes(String(folder.scope))) {
+      throw new Error('[Bundle] Invalid folder descriptor')
+    }
+    for (const field of ['icon', 'color']) {
+      if (folder[field] !== undefined && typeof folder[field] !== 'string') { throw new Error('[Bundle] Invalid folder presentation') }
+    }
+    const visited = new Set<string>([key])
+    let parent = folder.parentId
+    while (parent !== null) {
+      if (typeof parent !== 'string' || !Object.hasOwn(folders, parent) || visited.has(parent)) { throw new Error('[Bundle] Invalid folder ancestry') }
+      visited.add(parent)
+      parent = asObject(folders[parent], 'parent folder').parentId
+    }
+  }
+  for (const raw of Object.values(documents)) {
+    const document = asObject(raw, 'document')
+    for (const field of ['documentType', 'facetIdentity', 'kind', 'kindIdentity', 'storeIdentity', 'icon', 'color']) {
+      if (document[field] !== undefined && typeof document[field] !== 'string') { throw new Error('[Bundle] Invalid document navigation') }
+    }
+    asText(document.identity, 'document identity')
+    asText(document.id, 'document id')
+    asText(document.entityType, 'document type')
+    if (typeof document.displayName !== 'string' || !Number.isFinite(document.position) || !['compiled', 'not-compiled'].includes(String(document.status))) {
+      throw new Error('[Bundle] Invalid document descriptor')
+    }
+    if (!Array.isArray(document.artifactKeys) || document.artifactKeys.some(key => typeof key !== 'string' || !Object.hasOwn(artifacts, key))) {
+      throw new Error('[Bundle] Missing document artifact')
+    }
+    if ((document.status === 'compiled') !== (document.artifactKeys.length > 0)) { throw new Error('[Bundle] Document status mismatch') }
+    for (const key of document.artifactKeys) {
+      const ref = asObject(asObject(artifacts[String(key)], 'artifact').ref, 'ref')
+      if (ref.entityType !== document.entityType || ref.identity !== document.identity) { throw new Error('[Bundle] Document artifact mismatch') }
+    }
+    for (const field of ['folderId', 'workspaceFolderId']) {
+      if (document[field] !== null && !Object.hasOwn(folders, String(document[field]))) { throw new Error('[Bundle] Missing document folder') }
+    }
+  }
 }
 
 export function readEndgeBundle(input: unknown): EndgeBundle {

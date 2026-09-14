@@ -15,9 +15,26 @@
       "timezone": "Europe/Moscow",
       "configuration": {
         "vars": [],
-        "locales": [],
-        "themes": [],
-        "timezones": []
+        "locales": [
+          { "code": "ru", "displayName": "Русский", "shortLabel": "RU", "direction": "ltr" }
+        ],
+        "defaultLocale": "ru",
+        "fallbackLocale": "ru",
+        "themes": [
+          { "identity": "light", "displayName": "Светлая" }
+        ],
+        "defaultTheme": "light",
+        "timezones": [
+          { "identity": "Europe/Moscow", "displayName": "Москва" }
+        ],
+        "defaultTimezone": "Europe/Moscow",
+        "defaultAuthProfileIdentity": null,
+        "sfcAdapterIds": ["headless"],
+        "defaultSfcAdapterId": "headless",
+        "sfcEditing": { "cancelOn": [], "commitOn": [] },
+        "tooltips": { "side": "right", "align": "start", "openDelay": 250, "closeDelay": 100 },
+        "diagnostics": {},
+        "values": {}
       }
     },
     "requirements": {
@@ -58,9 +75,11 @@
             { "name": "warehouse", "path": "warehouse", "scopePath": "scope_default", "kind": "store", "identity": "warehouse-store", "resolution": "isolated" },
             { "name": "statuses", "path": "statuses", "scopePath": "scope_default", "kind": "vocab", "identity": "warehouse-statuses", "policy": "eager" }
           ],
-          "resources": [],
+          "resources": [
+            { "name": "history", "path": "history", "scopePath": "scope_default", "sourceOrder": 0, "kind": "operation-history", "operationHistory": { "limit": 20, "limitConfigurationPath": null, "shortcuts": null } }
+          ],
           "scopes": [
-            { "name": "scope_default", "path": "scope_default", "parentPath": null, "activationOverride": null, "effectiveActivation": { "mode": "startup" }, "data": ["warehouse", "statuses"], "resources": [], "runtimes": ["filters", "search", "events", "view"], "children": [], "sourceOrder": 0 }
+            { "name": "scope_default", "path": "scope_default", "parentPath": null, "activationOverride": null, "effectiveActivation": { "mode": "startup" }, "data": ["warehouse", "statuses"], "resources": ["history"], "runtimes": ["filters", "search", "events", "view"], "children": [], "sourceOrder": 0 }
           ],
           "runtimes": [
             { "name": "filters", "path": "filters", "scopePath": "scope_default", "kind": "filter", "identity": "warehouse-filter", "activationOverride": null, "effectiveActivation": { "mode": "startup" }, "props": {}, "storeTo": [] },
@@ -103,7 +122,7 @@
       "component-sfc:component-1": {
         "ref": { "entityType": "component-sfc", "id": "component-1", "identity": "warehouse-view" },
         "sourceHash": "component-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["renderable"], "metadata": {},
-        "payload": { "type": "component-sfc", "sourceVersion": 1, "contract": { "props": [{ "key": "store", "type": "Object" }] }, "dependencies": {}, "ir": { "version": 1, "root": { "type": "element", "tag": "section", "children": [] } }, "runtimeDependencies": { "props": [], "context": [], "boundaries": [], "vocabs": [], "meta": [] }, "sections": {} }
+        "payload": { "type": "component-sfc", "sourceVersion": 1, "contract": { "inputs": [{ "key": "store", "type": "Object" }], "events": [], "slots": [] }, "dependencies": { "components": [], "computations": [], "actions": [], "queries": [], "dataSources": [], "renderers": [] }, "ir": { "version": 2, "script": { "props": [], "locals": [], "portCalls": [], "ports": { "require": { "computations": [], "components": [], "actions": [], "queries": [] }, "provides": { "actions": [] }, "emits": { "events": [] }, "forward": { "rules": [] } } }, "template": { "roots": [{ "id": "root", "kind": "element", "tag": "section", "props": {}, "directives": {}, "events": [], "children": [] }] }, "style": null }, "runtimeDependencies": { "props": [], "context": [], "boundaries": [], "vocabs": [], "meta": [] }, "sections": {} }
       },
       "computation:computation-1": {
         "ref": { "entityType": "computation", "id": "computation-1", "identity": "warehouse-count" },
@@ -113,7 +132,7 @@
       "action:action-1": {
         "ref": { "entityType": "action", "id": "action-1", "identity": "warehouse.refresh" },
         "sourceHash": "action-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["executable"], "metadata": {},
-        "payload": { "type": "action", "sourceVersion": 1, "target": null }
+        "payload": { "type": "action", "sourceVersion": 1, "sourceDocument": null, "target": null }
       },
       "vocab:vocab-1": {
         "ref": { "entityType": "vocab", "id": "vocab-1", "identity": "warehouse-statuses" },
@@ -123,17 +142,17 @@
       "data-view:data-view-1": {
         "ref": { "entityType": "data-view", "id": "data-view-1", "identity": "warehouse-visible" },
         "sourceHash": "data-view-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["executable"], "metadata": {},
-        "payload": { "type": "data-view", "mode": "pipeline", "materializationStrategy": { "kind": "full" }, "steps": [], "props": [] }
+        "payload": { "type": "data-view", "mode": "pipeline", "materializationStrategy": { "kind": "full" }, "steps": [], "props": [], "output": {} }
       },
       "style:style-1": {
         "ref": { "entityType": "style", "id": "style-1", "identity": "warehouse-style" },
         "sourceHash": "style-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["renderable"], "metadata": {},
-        "payload": { "stylesheet": [], "themes": [], "dependencies": [] }
+        "payload": { "stylesheet": {}, "themes": [], "dependencies": [] }
       },
       "configuration:configuration-1": {
         "ref": { "entityType": "configuration", "id": "configuration-1", "identity": "warehouse-configuration" },
         "sourceHash": "configuration-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["configuration"], "metadata": {},
-        "payload": { "type": "configuration", "sourceVersion": 1, "values": {} }
+        "payload": { "type": "configuration", "identity": "warehouse-configuration", "sourceVersion": 1, "values": [] }
       }
     }
   }

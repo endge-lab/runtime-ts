@@ -1,6 +1,7 @@
 import type { StreamTransportConnection } from '@/features/runtime-ts/modules/host/host.types'
 import type { ProgramArtifact, RuntimeHostSnapshot } from '@/features/runtime-ts/modules/program/program.types'
 import type { BundleJsonValue } from '@/features/runtime-ts/shared/json'
+import { RuntimeResourceBag } from '@/features/runtime-ts/modules/runtime/resources/RuntimeResourceBag'
 
 export type RuntimeEntityType = 'composition' | 'component-sfc' | 'query' | 'stream' | 'store' | 'filter' | 'page' | 'action' | 'simulation'
 
@@ -35,7 +36,7 @@ export class RuntimeHost {
   public status: RuntimeHostSnapshot['status'] = 'created'
   public readonly context: Record<string, any> = {}
   public readonly meta: Record<string, any>
-  public readonly resources: Array<Record<string, BundleJsonValue>> = []
+  public readonly ownedResources = new RuntimeResourceBag()
   public readonly channels: Array<Record<string, BundleJsonValue>> = []
   public readonly capabilities: string[]
   public readonly outputs = new Map<string, unknown>()
@@ -106,7 +107,7 @@ export class RuntimeHost {
       status: this.status,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
-      resources: [...this.resources],
+      resources: this.ownedResources.snapshot().resources,
       channels: [...this.channels],
       meta: JSON.parse(JSON.stringify(this.meta)),
       context: JSON.parse(JSON.stringify(this.context)),
