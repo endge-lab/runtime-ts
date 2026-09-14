@@ -1,0 +1,68 @@
+{
+  "name": "@endge/runtime-ts",
+  "type": "module",
+  "version": "0.1.0",
+  "private": false,
+  "packageManager": "pnpm@10.14.0",
+  "description": "Artifact-first headless TypeScript runtime for Endge Execution Bundles",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "import": "./dist/runtime-ts.js",
+      "default": "./dist/runtime-ts.js"
+    },
+    "./adapters/browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js",
+      "default": "./dist/browser.js"
+    },
+    "./adapters/node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js",
+      "default": "./dist/node.js"
+    }
+  },
+  "main": "./dist/runtime-ts.js",
+  "module": "./dist/runtime-ts.js",
+  "types": "./dist/main.d.ts",
+  "files": [
+    "LICENSE",
+    "README.md",
+    "dist"
+  ],
+  "scripts": {
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "dev": "vite build --watch",
+    "build": "pnpm typecheck && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint-check": "eslint . --cache",
+    "lint-fix": "eslint . --fix --cache",
+    "bundle:run": "tsx src/test/manual/run-bundle.ts"
+  },
+  "peerDependencies": {
+    "@endge/raph": "^3.3.0"
+  },
+  "dependencies": {
+    "@endge/utils": "^0.27.0",
+    "eventsource-parser": "^3.0.6",
+    "fflate": "^0.8.3",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "9.3.0",
+    "@endge/raph": "^3.3.0",
+    "@types/node": "^24.10.1",
+    "@types/ws": "^8.18.1",
+    "eslint": "10.9.1",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.21.0",
+    "typescript": "~6.0.3",
+    "unplugin-dts": "^1.0.3",
+    "vite": "^6.1.0",
+    "vitest": "^2.1.9"
+  },
+  "version_updated": "14.09.2026"
+}

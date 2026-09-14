@@ -1,0 +1,140 @@
+{
+  "format": "endge-bundle",
+  "version": 1,
+  "bundle": {
+    "version": 1,
+    "programId": "runtime-ts-test-program",
+    "compilerVersion": "runtime-ts-fixture-v1",
+    "createdAt": "2026-09-14T00:00:00.000Z",
+    "context": {
+      "workspace": "warehouse",
+      "facets": {},
+      "user": "test-user",
+      "locale": "ru",
+      "theme": "light",
+      "timezone": "Europe/Moscow",
+      "configuration": {
+        "vars": [],
+        "locales": [],
+        "themes": [],
+        "timezones": []
+      }
+    },
+    "requirements": {
+      "hostActions": [
+        { "identity": "warehouse.refresh", "owner": "fixture", "providerKey": "fixture.refresh" }
+      ],
+      "artifactTypes": ["composition", "store", "update", "query", "stream", "filter", "component-sfc", "computation", "action", "vocab", "data-view", "style", "configuration"],
+      "componentTags": [
+        { "tag": "WarehouseView", "identity": "warehouse-view" }
+      ]
+    },
+    "catalog": {
+      "workspace": {
+        "identity": "warehouse",
+        "displayName": "Тестовый склад",
+        "startupCompositionIdentity": "warehouse-startup",
+        "documentStructure": "frontend"
+      },
+      "folders": {},
+      "documents": {}
+    },
+    "artifacts": {
+      "composition:composition-1": {
+        "ref": { "entityType": "composition", "id": "composition-1", "identity": "warehouse-startup" },
+        "sourceHash": "composition-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [],
+        "dependencies": [
+          { "entityType": "store", "id": "store-1", "identity": "warehouse-store" },
+          { "entityType": "vocab", "id": "vocab-1", "identity": "warehouse-statuses" },
+          { "entityType": "filter", "id": "filter-1", "identity": "warehouse-filter" },
+          { "entityType": "query", "id": "query-1", "identity": "warehouse-query" },
+          { "entityType": "stream", "id": "stream-1", "identity": "warehouse-stream" },
+          { "entityType": "component-sfc", "id": "component-1", "identity": "warehouse-view" }
+        ],
+        "capabilities": ["runnable"], "metadata": {},
+        "payload": {
+          "type": "composition", "sourceVersion": 1, "dataMode": "live", "activation": null, "props": [], "previewProps": null,
+          "data": [
+            { "name": "warehouse", "path": "warehouse", "scopePath": "scope_default", "kind": "store", "identity": "warehouse-store", "resolution": "isolated" },
+            { "name": "statuses", "path": "statuses", "scopePath": "scope_default", "kind": "vocab", "identity": "warehouse-statuses", "policy": "eager" }
+          ],
+          "resources": [],
+          "scopes": [
+            { "name": "scope_default", "path": "scope_default", "parentPath": null, "activationOverride": null, "effectiveActivation": { "mode": "startup" }, "data": ["warehouse", "statuses"], "resources": [], "runtimes": ["filters", "search", "events", "view"], "children": [], "sourceOrder": 0 }
+          ],
+          "runtimes": [
+            { "name": "filters", "path": "filters", "scopePath": "scope_default", "kind": "filter", "identity": "warehouse-filter", "activationOverride": null, "effectiveActivation": { "mode": "startup" }, "props": {}, "storeTo": [] },
+            { "name": "search", "path": "search", "scopePath": "scope_default", "kind": "query", "identity": "warehouse-query", "activationOverride": null, "effectiveActivation": { "mode": "startup" }, "props": { "filterPayload": { "kind": "output", "runtime": "filters", "output": "request" } }, "storeTo": [{ "data": "warehouse", "fields": { "items": "items" } }] },
+            { "name": "events", "path": "events", "scopePath": "scope_default", "kind": "stream", "identity": "warehouse-stream", "activationOverride": null, "effectiveActivation": { "mode": "startup" }, "props": {}, "storeTo": [], "dispatchTo": ["warehouse"] },
+            { "name": "view", "path": "view", "scopePath": "scope_default", "kind": "component", "identity": "warehouse-view", "activationOverride": null, "effectiveActivation": { "mode": "startup" }, "props": { "store": { "kind": "store", "key": "warehouse" } }, "storeTo": [] }
+          ],
+          "hooks": [{ "kind": "mount", "target": "search" }],
+          "outputs": [{ "key": "items", "kind": "runtime", "runtime": "search", "output": "items" }],
+          "i18nResources": [],
+          "graph": { "inputs": [], "dataInputs": [], "updates": [], "successes": [], "publications": [{ "id": "publish-items", "sourceRuntime": "search", "sourceOutput": "items", "targetData": "query", "targetPath": "items" }], "mounts": [], "events": [] }
+        }
+      },
+      "store:store-1": {
+        "ref": { "entityType": "store", "id": "store-1", "identity": "warehouse-store" },
+        "sourceHash": "store-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [],
+        "dependencies": [{ "entityType": "update", "id": "update-1", "identity": "warehouse-update" }], "capabilities": ["data-provider"], "metadata": {},
+        "payload": { "type": "store", "sourceVersion": 1, "data": [{ "key": "items", "kind": "value", "initial": { "kind": "literal", "value": [] }, "contract": null }], "updateHandlers": [{ "identity": "warehouse-update", "eventTypes": ["stock.changed"] }] }
+      },
+      "update:update-1": {
+        "ref": { "entityType": "update", "id": "update-1", "identity": "warehouse-update" },
+        "sourceHash": "update-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["executable"], "metadata": {},
+        "payload": { "type": "update", "sourceVersion": 1, "storeIdentity": "warehouse-store", "handles": ["stock.changed"], "mutations": [{ "strategy": "set", "path": "items", "value": { "type": "read", "source": "input", "path": "items" } }] }
+      },
+      "filter:filter-1": {
+        "ref": { "entityType": "filter", "id": "filter-1", "identity": "warehouse-filter" },
+        "sourceHash": "filter-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["runnable"], "metadata": {},
+        "payload": { "type": "filter", "sourceVersion": 1, "fields": [{ "key": "search", "type": "String", "optional": true, "array": false }], "defaults": { "search": { "type": "literal", "value": "" } }, "outputs": [{ "key": "request", "kind": "json", "expression": { "type": "object", "properties": { "search": { "type": "read", "source": "value", "path": "search" } } }, "dependencies": ["search"] }] }
+      },
+      "query:query-1": {
+        "ref": { "entityType": "query", "id": "query-1", "identity": "warehouse-query" },
+        "sourceHash": "query-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["runnable"], "metadata": {},
+        "payload": { "type": "query-rest", "sourceVersion": 2, "endpoint": "https://warehouse.test", "query": "/items", "method": "POST", "headers": {}, "auth": { "mode": "none" }, "props": [{ "key": "filterPayload", "type": "Object", "optional": true, "array": false }], "requestBody": { "type": "read", "source": "prop", "path": "filterPayload" }, "outputs": [{ "key": "items", "source": { "type": "response", "path": "items" }, "transforms": [], "dataViews": [], "materialization": { "kind": "source" } }], "mockDataEnabled": false, "mockData": null }
+      },
+      "stream:stream-1": {
+        "ref": { "entityType": "stream", "id": "stream-1", "identity": "warehouse-stream" },
+        "sourceHash": "stream-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["runnable"], "metadata": {},
+        "payload": { "type": "stream", "sourceVersion": 1, "transport": { "kind": "sse", "url": "https://warehouse.test/events", "withCredentials": false, "authMode": "none", "authProfileIdentity": null }, "events": [{ "sourceEvent": "message", "type": null, "typePath": "type", "payloadPath": "payload" }] }
+      },
+      "component-sfc:component-1": {
+        "ref": { "entityType": "component-sfc", "id": "component-1", "identity": "warehouse-view" },
+        "sourceHash": "component-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["renderable"], "metadata": {},
+        "payload": { "type": "component-sfc", "sourceVersion": 1, "contract": { "props": [{ "key": "store", "type": "Object" }] }, "dependencies": {}, "ir": { "version": 1, "root": { "type": "element", "tag": "section", "children": [] } }, "runtimeDependencies": { "props": [], "context": [], "boundaries": [], "vocabs": [], "meta": [] }, "sections": {} }
+      },
+      "computation:computation-1": {
+        "ref": { "entityType": "computation", "id": "computation-1", "identity": "warehouse-count" },
+        "sourceHash": "computation-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["executable"], "metadata": {},
+        "payload": { "execution": "sync", "nodes": [{ "kind": "expression", "name": "result", "dependencies": [], "expression": { "type": "read", "source": "input", "path": "count" } }], "result": { "type": "read", "source": "computation-output", "path": "result" } }
+      },
+      "action:action-1": {
+        "ref": { "entityType": "action", "id": "action-1", "identity": "warehouse.refresh" },
+        "sourceHash": "action-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["executable"], "metadata": {},
+        "payload": { "type": "action", "sourceVersion": 1, "target": null }
+      },
+      "vocab:vocab-1": {
+        "ref": { "entityType": "vocab", "id": "vocab-1", "identity": "warehouse-statuses" },
+        "sourceHash": "vocab-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["data-provider"], "metadata": {},
+        "payload": { "sourceVersion": 1, "provider": null, "mock": { "data": [{ "id": "available", "name": "Доступен" }] }, "outputs": [] }
+      },
+      "data-view:data-view-1": {
+        "ref": { "entityType": "data-view", "id": "data-view-1", "identity": "warehouse-visible" },
+        "sourceHash": "data-view-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["executable"], "metadata": {},
+        "payload": { "type": "data-view", "mode": "pipeline", "materializationStrategy": { "kind": "full" }, "steps": [], "props": [] }
+      },
+      "style:style-1": {
+        "ref": { "entityType": "style", "id": "style-1", "identity": "warehouse-style" },
+        "sourceHash": "style-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["renderable"], "metadata": {},
+        "payload": { "stylesheet": [], "themes": [], "dependencies": [] }
+      },
+      "configuration:configuration-1": {
+        "ref": { "entityType": "configuration", "id": "configuration-1", "identity": "warehouse-configuration" },
+        "sourceHash": "configuration-source", "compilerVersion": "runtime-ts-fixture-v1", "status": "valid", "diagnostics": [], "dependencies": [], "capabilities": ["configuration"], "metadata": {},
+        "payload": { "type": "configuration", "sourceVersion": 1, "values": {} }
+      }
+    }
+  }
+}
